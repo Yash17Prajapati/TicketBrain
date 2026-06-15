@@ -47,12 +47,119 @@ Agent panel in Helpdesk portal
 | Requirement | Version |
 |-------------|---------|
 | Python | 3.10+ |
+| Node.js | 18+ |
 | Frappe | v15 |
+| ERPNext | v15 |
 | Frappe Helpdesk | latest |
 | Redis | any (standard; RediSearch **not** required) |
+| MariaDB | 10.6+ |
 | An LLM API key **or** Ollama running locally | — |
 
-> **ERPNext** is optional. TicketBrain only needs Frappe + Frappe Helpdesk.
+---
+
+## Setting up Frappe + ERPNext + Helpdesk (fresh system)
+
+Skip this section if you already have a working Frappe bench with ERPNext and Frappe Helpdesk installed.
+
+### System dependencies (Ubuntu 22.04 / 24.04)
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git python3-dev python3-pip python3-venv \
+    mariadb-server mariadb-client libmysqlclient-dev \
+    redis-server nodejs npm wkhtmltopdf \
+    libssl-dev libffi-dev build-essential
+```
+
+#### Secure MariaDB
+
+```bash
+sudo mysql_secure_installation
+```
+
+Then set MariaDB to use the correct character set. Open `/etc/mysql/mariadb.conf.d/50-server.cnf` and add under `[mysqld]`:
+
+```ini
+[mysqld]
+character-set-client-handshake = FALSE
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+[mysql]
+default-character-set = utf8mb4
+```
+
+Restart MariaDB:
+
+```bash
+sudo systemctl restart mariadb
+```
+
+#### Install Node.js 18 (if not already)
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+#### Install yarn
+
+```bash
+sudo npm install -g yarn
+```
+
+### Install bench CLI
+
+```bash
+sudo pip3 install frappe-bench
+```
+
+### Create a new bench
+
+```bash
+bench init --frappe-branch version-15 ticketbrain-bench
+cd ticketbrain-bench
+```
+
+### Get ERPNext and Frappe Helpdesk
+
+```bash
+bench get-app --branch version-15 erpnext
+bench get-app helpdesk
+```
+
+### Create a site
+
+```bash
+bench new-site your-site.local --install-app frappe
+```
+
+When prompted, set a MySQL root password and an Administrator password for the site.
+
+### Install ERPNext and Helpdesk on the site
+
+```bash
+bench --site your-site.local install-app erpnext
+bench --site your-site.local install-app helpdesk
+```
+
+### Set up a development server
+
+```bash
+bench --site your-site.local set-config developer_mode 1
+bench use your-site.local
+bench start
+```
+
+The site will be available at `http://your-site.local:8000`. Add it to `/etc/hosts` if needed:
+
+```bash
+echo "127.0.0.1 your-site.local" | sudo tee -a /etc/hosts
+```
+
+### (Production only) Set up supervisor + nginx
+
+For a production deployment use the official Frappe easy-install script or configure supervisor and nginx manually. See [Frappe Bench production setup](https://frappeframework.com/docs/user/en/bench/guides/setup-production).
 
 ---
 
