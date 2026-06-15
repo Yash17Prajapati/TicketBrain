@@ -162,173 +162,361 @@ _TB_FORM_SCRIPT_NAME = "TicketBrain Approval Actions"
 
 _TB_FORM_SCRIPT = r"""
 async function setupForm({ doc, call, createToast }) {
-    if (doc.status !== "Pending Approval") return { actions: [] };
 
-    async function getInteraction() {
-        const rows = await call("frappe.client.get_list", {
+    // ── Fetch both states in parallel ─────────────────────────────────────────
+    const [pendingRows, assignmentData] = await Promise.all([
+        // 1. Is there a pending AI draft to review?
+        call("frappe.client.get_list", {
             doctype: "TB AI Interaction",
             filters: { ticket: doc.name, approval_status: "Pending Approval" },
             fields: ["name", "ai_draft_response", "auto_send_reason"],
             limit: 1,
-        });
-        return rows && rows.length ? rows[0] : null;
+        }).catch(() => []),
+        // 2. Should this agent see Accept / Correct buttons?
+        call("ticketbrain.api.correction.get_assignment_status", {
+            ticket_id: doc.name,
+        }).catch(() => ({ has_ai: false })),
+    ]);
+
+    const pendingInteraction = pendingRows && pendingRows.length ? pendingRows[0] : null;
+    const showAssignment     = assignmentData && assignmentData.has_ai && !assignmentData.already_acted;
+
+    // Inject the AI info banner above the activity feed when assignment panel is needed
+    if (showAssignment) {
+        setTimeout(() => _injectAssignmentBanner(assignmentData), 400);
     }
 
-    function openReviewModal(interaction) {
-        const existing = document.getElementById("tb-review-modal");
-        if (existing) existing.remove();
+    const actions = [];
 
-        const overlay = document.createElement("div");
-        overlay.id = "tb-review-modal";
-        overlay.style.cssText = [
-            "position:fixed", "inset:0", "background:rgba(17,24,39,0.45)",
-            "display:flex", "align-items:center", "justify-content:center",
-            "z-index:10000", "padding:16px",
-        ].join(";");
+    // ── Action 1: Review AI Draft ─────────────────────────────────────────────
+    if (pendingInteraction) {
+        actions.push({
+            label: "Review AI Draft",
+            onClick: async () => {
+                const rows = await call("frappe.client.get_list", {
+                    doctype: "TB AI Interaction",
+                    filters: { ticket: doc.name, approval_status: "Pending Approval" },
+                    fields: ["name", "ai_draft_response", "auto_send_reason"],
+                    limit: 1,
+                });
+                const interaction = rows && rows.length ? rows[0] : null;
+                if (!interaction) {
+                    createToast({ title: "No pending AI draft found.", type: "error" });
+                    return;
+                }
+                _openReviewModal(interaction, doc, call, createToast);
+            },
+        });
+    }
 
-        const reasonBanner = interaction.auto_send_reason ? `
-            <div style="display:flex;align-items:flex-start;gap:8px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:16px;">
-                <span style="color:#d97706;font-size:15px;flex-shrink:0;">⚠</span>
-                <div>
-                    <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:2px;">Held for review</div>
-                    <div style="font-size:12px;color:#b45309;">${interaction.auto_send_reason}</div>
-                </div>
-            </div>` : "";
+    // ── Action 2: Accept Assignment ───────────────────────────────────────────
+    if (showAssignment) {
+        actions.push({
+            label: "✓ Accept Assignment",
+            onClick: async () => {
+                if (!confirm("Accept the AI assignment? This records your approval.")) return;
+                try {
+                    await call("ticketbrain.api.correction.accept_assignment", {
+                        ticket_id: doc.name,
+                    });
+                    _removeBanner();
+                    createToast({ title: "Assignment accepted.", type: "success" });
+                    setTimeout(() => window.location.reload(), 600);
+                } catch (e) {
+                    createToast({ title: "Failed to accept. Please try again.", type: "error" });
+                }
+            },
+        });
+    }
 
-        overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;width:600px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.18);overflow:hidden;">
+    // ── Action 3: Correct Assignment ──────────────────────────────────────────
+    if (showAssignment) {
+        actions.push({
+            label: "✎ Correct Assignment",
+            onClick: async () => {
+                let teams = [];
+                try {
+                    const result = await call("ticketbrain.api.correction.get_teams", {});
+                    teams = Array.isArray(result) ? result : [];
+                } catch (e) {}
+                _openCorrectionModal(assignmentData, teams, doc, call, createToast);
+            },
+        });
+    }
 
-            <!-- Header -->
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
-                <div>
-                    <div style="font-size:15px;font-weight:600;color:#0f172a;">Review AI Draft</div>
-                    <div style="font-size:12px;color:#64748b;margin-top:1px;">Approve the AI response or write your own before sending to the customer.</div>
-                </div>
-                <button id="tb-close" style="width:28px;height:28px;border:none;background:#f1f5f9;border-radius:6px;cursor:pointer;font-size:16px;color:#64748b;display:flex;align-items:center;justify-content:center;">✕</button>
-            </div>
+    return { actions };
+}
 
-            <!-- Scrollable body -->
-            <div style="flex:1;overflow-y:auto;padding:18px 22px;">
-                ${reasonBanner}
 
-                <!-- Tabs -->
-                <div id="tb-tabs" style="display:flex;gap:0;border-bottom:1px solid #e2e8f0;margin-bottom:16px;">
-                    <button id="tb-tab-ai" data-tab="ai" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-1px;">AI Draft</button>
-                    <button id="tb-tab-custom" data-tab="custom" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-1px;">Write Custom Reply</button>
-                </div>
+// ── AI Assignment Info Banner ─────────────────────────────────────────────────
+// Injected above the activity feed — same visual style as the ticket itself.
 
-                <!-- AI Draft panel -->
-                <div id="tb-panel-ai">
-                    <div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">What the customer will receive</div>
-                    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:260px;overflow-y:auto;background:#f8fafc;font-size:13px;line-height:1.7;color:#1e293b;">
-                        ${interaction.ai_draft_response || "<em style='color:#94a3b8'>No draft content</em>"}
-                    </div>
-                </div>
+function _injectAssignmentBanner(data) {
+    if (document.getElementById("tb-assignment-banner")) return;
+    const target = document.querySelector(".activities") ||
+                   document.querySelector(".activity-section") ||
+                   document.querySelector("main");
+    if (!target) return;
 
-                <!-- Custom reply panel (hidden by default) -->
-                <div id="tb-panel-custom" style="display:none;">
-                    <div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Your message to the customer</div>
-                    <textarea id="tb-custom-msg" placeholder="Type your reply here..." style="width:100%;min-height:160px;border:1px solid #d1d5db;border-radius:8px;padding:12px;font-size:13px;line-height:1.6;color:#1e293b;resize:vertical;box-sizing:border-box;font-family:inherit;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#d1d5db'"></textarea>
-                    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">The AI draft will be discarded and your message will be sent instead.</div>
-                </div>
-            </div>
+    const conf      = Math.round((data.confidence || 0));
+    const confColor = conf >= 80 ? "#16a34a" : conf >= 65 ? "#d97706" : "#dc2626";
+    const confBg    = conf >= 80 ? "#f0fdf4" : conf >= 65 ? "#fffbeb" : "#fff5f5";
 
-            <!-- Footer -->
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid #f1f5f9;background:#fafafa;">
-                <button id="tb-cancel" style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:13px;font-weight:500;cursor:pointer;color:#374151;">Cancel</button>
-                <button id="tb-send" style="padding:8px 22px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-                    <span>✓</span><span id="tb-send-label">Approve &amp; Send</span>
-                </button>
-            </div>
+    const banner = document.createElement("div");
+    banner.id = "tb-assignment-banner";
+    banner.style.cssText = "background:#fff;border:1px solid #e2e8f0;border-radius:8px;" +
+        "padding:14px 18px;margin:0 0 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);" +
+        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+
+    banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:#6366f1;flex-shrink:0;display:inline-block;"></span>
+            <span style="font-size:12px;font-weight:600;color:#1e293b;">TicketBrain AI Recommendation</span>
+            <span style="margin-left:auto;font-size:11px;color:#94a3b8;">${data.decision || ""}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+            ${_bannerCell("Category", data.ai_category || "—", "#1e293b", null)}
+            ${_bannerCell("Team",     data.ai_team     || "Not assigned", "#1e293b", null)}
+            ${_bannerCell("Priority", data.ai_priority || "—", "#1e293b", null)}
+            ${_bannerCell("Confidence", conf + "%", confColor, confBg)}
         </div>`;
 
-        document.body.appendChild(overlay);
+    target.parentNode.insertBefore(banner, target);
+}
 
-        let activeTab = "ai";
+function _bannerCell(label, value, color, bg) {
+    const span = bg
+        ? `<span style="background:${bg};border-radius:4px;padding:1px 6px;display:inline-block;color:${color};font-size:13px;font-weight:600;">${value}</span>`
+        : `<span style="color:${color};font-size:13px;font-weight:600;">${value}</span>`;
+    return `<div>
+        <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">${label}</div>
+        ${span}
+    </div>`;
+}
 
-        function switchTab(tab) {
-            activeTab = tab;
-            const isAI = tab === "ai";
+function _removeBanner() {
+    const el = document.getElementById("tb-assignment-banner");
+    if (el) el.remove();
+}
 
-            overlay.querySelector("#tb-panel-ai").style.display    = isAI ? "block" : "none";
-            overlay.querySelector("#tb-panel-custom").style.display = isAI ? "none"  : "block";
 
-            overlay.querySelector("#tb-tab-ai").style.color        = isAI ? "#6366f1" : "#64748b";
-            overlay.querySelector("#tb-tab-ai").style.fontWeight   = isAI ? "600" : "500";
-            overlay.querySelector("#tb-tab-ai").style.borderBottomColor = isAI ? "#6366f1" : "transparent";
+// ── Review AI Draft modal ─────────────────────────────────────────────────────
 
-            overlay.querySelector("#tb-tab-custom").style.color        = !isAI ? "#6366f1" : "#64748b";
-            overlay.querySelector("#tb-tab-custom").style.fontWeight   = !isAI ? "600" : "500";
-            overlay.querySelector("#tb-tab-custom").style.borderBottomColor = !isAI ? "#6366f1" : "transparent";
+function _openReviewModal(interaction, doc, call, createToast) {
+    const existing = document.getElementById("tb-review-modal");
+    if (existing) existing.remove();
 
-            const btn   = overlay.querySelector("#tb-send");
-            const label = overlay.querySelector("#tb-send-label");
-            btn.style.background = isAI ? "#16a34a" : "#2563eb";
-            label.textContent    = isAI ? "Approve & Send" : "Send Custom Reply";
-        }
+    const overlay = document.createElement("div");
+    overlay.id = "tb-review-modal";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(17,24,39,0.45);" +
+        "display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;";
 
-        overlay.querySelector("#tb-tab-ai").onclick     = () => switchTab("ai");
-        overlay.querySelector("#tb-tab-custom").onclick = () => switchTab("custom");
+    const reasonBanner = interaction.auto_send_reason ? `
+        <div style="display:flex;align-items:flex-start;gap:8px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+            <span style="color:#d97706;font-size:15px;flex-shrink:0;">⚠</span>
+            <div>
+                <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:2px;">Held for review</div>
+                <div style="font-size:12px;color:#b45309;">${interaction.auto_send_reason}</div>
+            </div>
+        </div>` : "";
 
-        const close = () => overlay.remove();
-        overlay.querySelector("#tb-close").onclick  = close;
-        overlay.querySelector("#tb-cancel").onclick = close;
-        overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:600px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.18);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;">
+            <div>
+                <div style="font-size:15px;font-weight:600;color:#0f172a;">Review AI Draft</div>
+                <div style="font-size:12px;color:#64748b;margin-top:1px;">Approve the AI response or write your own before sending to the customer.</div>
+            </div>
+            <button id="tb-close" style="width:28px;height:28px;border:none;background:#f1f5f9;border-radius:6px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:18px 22px;">
+            ${reasonBanner}
+            <div id="tb-tabs" style="display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:16px;">
+                <button id="tb-tab-ai" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-1px;">AI Draft</button>
+                <button id="tb-tab-custom" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-1px;">Write Custom Reply</button>
+            </div>
+            <div id="tb-panel-ai">
+                <div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">What the customer will receive</div>
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:260px;overflow-y:auto;background:#f8fafc;font-size:13px;line-height:1.7;color:#1e293b;">
+                    ${interaction.ai_draft_response || "<em style='color:#94a3b8'>No draft content</em>"}
+                </div>
+            </div>
+            <div id="tb-panel-custom" style="display:none;">
+                <div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Your message to the customer</div>
+                <textarea id="tb-custom-msg" placeholder="Type your reply here..." style="width:100%;min-height:160px;border:1px solid #d1d5db;border-radius:8px;padding:12px;font-size:13px;line-height:1.6;color:#1e293b;resize:vertical;box-sizing:border-box;font-family:inherit;outline:none;"></textarea>
+                <div style="font-size:11px;color:#94a3b8;margin-top:6px;">The AI draft will be discarded and your message will be sent instead.</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid #f1f5f9;background:#fafafa;">
+            <button id="tb-cancel" style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:13px;font-weight:500;cursor:pointer;color:#374151;">Cancel</button>
+            <button id="tb-send" style="padding:8px 22px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                <span id="tb-send-label">Approve &amp; Send</span>
+            </button>
+        </div>
+    </div>`;
 
-        overlay.querySelector("#tb-send").onclick = async () => {
-            const btn   = overlay.querySelector("#tb-send");
-            const label = overlay.querySelector("#tb-send-label");
-            btn.disabled = true;
-            label.textContent = "Sending…";
+    document.body.appendChild(overlay);
 
-            try {
-                if (activeTab === "ai") {
-                    await call("ticketbrain.api.ticket.approve_ai_response", {
-                        ticket_id: doc.name,
-                        interaction_id: interaction.name,
-                    });
-                    createToast({ title: "AI draft sent to customer. Ticket is now Open.", type: "success" });
-                } else {
-                    const msg = (overlay.querySelector("#tb-custom-msg").value || "").trim();
-                    if (!msg) {
-                        createToast({ title: "Please enter a message before sending.", type: "error" });
-                        btn.disabled = false;
-                        label.textContent = "Send Custom Reply";
-                        return;
-                    }
-                    await call("ticketbrain.api.ticket.submit_agent_response", {
-                        ticket_id: doc.name,
-                        interaction_id: interaction.name,
-                        custom_message: msg,
-                    });
-                    createToast({ title: "Custom reply sent to customer. Ticket is now Open.", type: "success" });
-                }
-                close();
-                // Reload so the button disappears and the ticket reflects its new Open status
-                setTimeout(() => window.location.reload(), 800);
-            } catch (e) {
-                createToast({ title: "Failed to send. Please try again.", type: "error" });
-                btn.disabled = false;
-                label.textContent = activeTab === "ai" ? "Approve & Send" : "Send Custom Reply";
-            }
-        };
+    let activeTab = "ai";
+    function switchTab(tab) {
+        activeTab = tab;
+        const isAI = tab === "ai";
+        overlay.querySelector("#tb-panel-ai").style.display     = isAI ? "block" : "none";
+        overlay.querySelector("#tb-panel-custom").style.display  = isAI ? "none"  : "block";
+        overlay.querySelector("#tb-tab-ai").style.color          = isAI ? "#6366f1" : "#64748b";
+        overlay.querySelector("#tb-tab-ai").style.borderBottomColor    = isAI ? "#6366f1" : "transparent";
+        overlay.querySelector("#tb-tab-custom").style.color      = isAI ? "#64748b" : "#6366f1";
+        overlay.querySelector("#tb-tab-custom").style.borderBottomColor = isAI ? "transparent" : "#6366f1";
+        overlay.querySelector("#tb-send").style.background       = isAI ? "#16a34a" : "#2563eb";
+        overlay.querySelector("#tb-send-label").textContent      = isAI ? "Approve & Send" : "Send Custom Reply";
     }
 
-    return {
-        actions: [
-            {
-                label: "Review AI Draft",
-                onClick: async () => {
-                    const interaction = await getInteraction();
-                    if (!interaction) {
-                        createToast({ title: "No pending AI draft found.", type: "error" });
-                        return;
-                    }
-                    openReviewModal(interaction);
-                },
-            },
-        ],
+    overlay.querySelector("#tb-tab-ai").onclick     = () => switchTab("ai");
+    overlay.querySelector("#tb-tab-custom").onclick = () => switchTab("custom");
+
+    const close = () => overlay.remove();
+    overlay.querySelector("#tb-close").onclick  = close;
+    overlay.querySelector("#tb-cancel").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    overlay.querySelector("#tb-send").onclick = async () => {
+        const btn   = overlay.querySelector("#tb-send");
+        const label = overlay.querySelector("#tb-send-label");
+        btn.disabled = true;
+        label.textContent = "Sending…";
+        try {
+            if (activeTab === "ai") {
+                await call("ticketbrain.api.ticket.approve_ai_response", {
+                    ticket_id: doc.name,
+                    interaction_id: interaction.name,
+                });
+                createToast({ title: "AI draft sent to customer. Ticket is now Open.", type: "success" });
+            } else {
+                const msg = (overlay.querySelector("#tb-custom-msg").value || "").trim();
+                if (!msg) {
+                    createToast({ title: "Please enter a message before sending.", type: "error" });
+                    btn.disabled = false;
+                    label.textContent = "Send Custom Reply";
+                    return;
+                }
+                await call("ticketbrain.api.ticket.submit_agent_response", {
+                    ticket_id: doc.name,
+                    interaction_id: interaction.name,
+                    custom_message: msg,
+                });
+                createToast({ title: "Custom reply sent to customer. Ticket is now Open.", type: "success" });
+            }
+            close();
+            setTimeout(() => window.location.reload(), 800);
+        } catch (e) {
+            createToast({ title: "Failed to send. Please try again.", type: "error" });
+            btn.disabled = false;
+            label.textContent = activeTab === "ai" ? "Approve & Send" : "Send Custom Reply";
+        }
     };
+}
+
+
+// ── Correct Assignment modal ──────────────────────────────────────────────────
+
+function _openCorrectionModal(data, teams, doc, call, createToast) {
+    const existing = document.getElementById("tb-correction-modal");
+    if (existing) existing.remove();
+
+    const teamOptions = teams.map(t =>
+        `<option value="${t}"${t === data.ai_team ? " selected" : ""}>${t}</option>`
+    ).join("");
+
+    const priorities = ["Low", "Medium", "High", "Critical"];
+    const priOptions = priorities.map(p =>
+        `<option${p === data.ai_priority ? " selected" : ""}>${p}</option>`
+    ).join("");
+
+    const overlay = document.createElement("div");
+    overlay.id = "tb-correction-modal";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.35);" +
+        "display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;";
+
+    overlay.innerHTML = `
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(15,23,42,.18);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;font-weight:600;color:#0f172a;">Correct AI Assignment</span>
+            <button id="tb-corr-close" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;">✕</button>
+        </div>
+        <div style="margin:14px 22px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:10px 14px;">
+            <div style="font-size:10px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">AI Predicted</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                ${_miniCell("Category", data.ai_category || "—")}
+                ${_miniCell("Team", data.ai_team || "—")}
+                ${_miniCell("Priority (" + (data.confidence || 0) + "%)", data.ai_priority || "—")}
+            </div>
+        </div>
+        <div style="padding:16px 22px;">
+            ${_fieldHtml("tb-corr-category", "input",  "Correct Category", data.ai_category || "", null, null)}
+            ${_fieldHtml("tb-corr-team",     "select", "Correct Team",     null, '<option value="">— Select team —</option>' + teamOptions, null)}
+            ${_fieldHtml("tb-corr-priority", "select", "Correct Priority", null, priOptions, null)}
+            ${_fieldHtml("tb-corr-reason",   "input",  "Correction Reason *", "", null, "e.g. Wrong Team, ERP Issue Not Network Issue")}
+            <p style="font-size:11px;color:#94a3b8;margin:4px 0 0;">Required — helps the AI learn from this correction.</p>
+        </div>
+        <div style="padding:12px 22px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #f1f5f9;">
+            <button id="tb-corr-cancel" style="padding:7px 14px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#475569;font-size:12px;font-weight:500;cursor:pointer;">Cancel</button>
+            <button id="tb-corr-submit" style="padding:7px 14px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-size:12px;font-weight:500;cursor:pointer;">Submit Correction</button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector("#tb-corr-close").onclick  = close;
+    overlay.querySelector("#tb-corr-cancel").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    overlay.querySelector("#tb-corr-submit").onclick = async () => {
+        const reason = (overlay.querySelector("#tb-corr-reason").value || "").trim();
+        if (!reason) {
+            overlay.querySelector("#tb-corr-reason").style.borderColor = "#dc2626";
+            overlay.querySelector("#tb-corr-reason").focus();
+            return;
+        }
+        const btn = overlay.querySelector("#tb-corr-submit");
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        try {
+            await call("ticketbrain.api.correction.submit_correction", {
+                ticket_id:         doc.name,
+                human_category:    overlay.querySelector("#tb-corr-category").value || "",
+                human_team:        overlay.querySelector("#tb-corr-team").value     || "",
+                human_priority:    overlay.querySelector("#tb-corr-priority").value || "",
+                correction_reason: reason,
+            });
+            close();
+            _removeBanner();
+            createToast({ title: "Correction saved — AI will learn from this for future tickets.", type: "success" });
+            setTimeout(() => window.location.reload(), 800);
+        } catch (e) {
+            createToast({ title: "Failed to save. Please try again.", type: "error" });
+            btn.disabled = false;
+            btn.textContent = "Submit Correction";
+        }
+    };
+}
+
+function _miniCell(label, value) {
+    return `<div><div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">${label}</div>` +
+           `<div style="font-size:12px;font-weight:600;color:#334155;">${value}</div></div>`;
+}
+
+function _fieldHtml(id, type, label, value, optionsHtml, placeholder) {
+    const s = "width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:6px;" +
+              "padding:8px 11px;font-size:13px;font-family:inherit;color:#0f172a;background:#fff;outline:none;";
+    const input = type === "select"
+        ? `<select id="${id}" style="${s}">${optionsHtml}</select>`
+        : `<input id="${id}" type="text" value="${(value||"").replace(/"/g,"&quot;")}"` +
+          (placeholder ? ` placeholder="${placeholder}"` : "") + ` style="${s}">`;
+    return `<div style="margin-bottom:13px;">
+        <label for="${id}" style="display:block;font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">${label}</label>
+        ${input}
+    </div>`;
 }
 """.strip()
 
