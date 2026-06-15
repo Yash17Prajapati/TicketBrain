@@ -163,16 +163,35 @@ _TB_FORM_SCRIPT_NAME = "TicketBrain Approval Actions"
 _TB_FORM_SCRIPT = r"""
 async function setupForm({ doc, call, createToast }) {
 
-    // ── Fetch both states in parallel ─────────────────────────────────────────
+    // ── Feature 1: Evaluating overlay (customers + agents) ────────────────────
+    // Check if AI is still processing this ticket (only relevant for fresh tickets).
+    const ageSeconds = doc.creation
+        ? (Date.now() - new Date(doc.creation).getTime()) / 1000
+        : 9999;
+
+    if (ageSeconds < 180) {
+        let statusRes = {};
+        try {
+            statusRes = await call("ticketbrain.api.ticket.get_ai_processing_status", {
+                ticket_name: doc.name,
+            });
+        } catch (e) {}
+
+        if (statusRes && !statusRes.done) {
+            _showEvaluatingOverlay(call, doc.name);
+        }
+    }
+
+    // ── Fetch agent-only states in parallel ───────────────────────────────────
     const [pendingRows, assignmentData] = await Promise.all([
-        // 1. Is there a pending AI draft to review?
+        // Is there a pending AI draft to review?
         call("frappe.client.get_list", {
             doctype: "TB AI Interaction",
             filters: { ticket: doc.name, approval_status: "Pending Approval" },
             fields: ["name", "ai_draft_response", "auto_send_reason"],
             limit: 1,
         }).catch(() => []),
-        // 2. Should this agent see Accept / Correct buttons?
+        // Should this agent see Accept / Correct buttons?
         call("ticketbrain.api.correction.get_assignment_status", {
             ticket_id: doc.name,
         }).catch(() => ({ has_ai: false })),
@@ -245,6 +264,83 @@ async function setupForm({ doc, call, createToast }) {
     }
 
     return { actions };
+}
+
+
+// ── Evaluating overlay ────────────────────────────────────────────────────────
+
+function _showEvaluatingOverlay(call, ticketName) {
+    const OVERLAY_ID = "tb-evaluating-overlay";
+    if (document.getElementById(OVERLAY_ID)) return;
+
+    const el = document.createElement("div");
+    el.id = OVERLAY_ID;
+    el.innerHTML = `
+        <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.82);
+            backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:9999;
+            display:flex;align-items:center;justify-content:center;animation:tb-fadein 0.25s ease;">
+            <div style="position:relative;text-align:center;background:#fff;border:1px solid #e5e7eb;
+                border-radius:12px;padding:36px 48px 28px;box-shadow:0 8px 32px rgba(0,0,0,.10);
+                max-width:420px;width:90%;">
+                <button id="tb-ov-close" aria-label="Close" style="position:absolute;top:12px;right:12px;
+                    width:28px;height:28px;border:none;border-radius:6px;background:#f8fafc;
+                    color:#64748b;cursor:pointer;font-size:18px;line-height:1;">&times;</button>
+                <div style="margin-bottom:20px;">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none"
+                        style="animation:tb-spin 1.2s linear infinite;display:inline-block;">
+                        <circle cx="24" cy="24" r="20" stroke="#e5e7eb" stroke-width="4"/>
+                        <path d="M44 24 A20 20 0 0 0 24 4" stroke="#6366f1" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div style="font-size:17px;font-weight:600;color:#111827;margin-bottom:8px;">Evaluating your ticket…</div>
+                <div style="font-size:13px;color:#6b7280;line-height:1.6;">
+                    TicketBrain AI is analysing your issue, finding the best resolution,
+                    and routing it to the right team.
+                    <span style="display:block;color:#9ca3af;font-size:12px;margin-top:6px;">This usually takes a few seconds.</span>
+                </div>
+                <div style="margin-top:20px;display:flex;gap:6px;justify-content:center;margin-bottom:18px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#a855f7;animation:tb-pulse 1.4s ease-in-out 0s infinite;display:inline-block;"></span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#a855f7;animation:tb-pulse 1.4s ease-in-out 0.2s infinite;display:inline-block;"></span>
+                    <span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:tb-pulse 1.4s ease-in-out 0.4s infinite;display:inline-block;"></span>
+                </div>
+                <button id="tb-ov-continue" style="border:none;border-radius:8px;background:#eef2ff;
+                    color:#4f46e5;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">
+                    Continue browsing
+                </button>
+            </div>
+        </div>
+        <style>
+            @keyframes tb-spin{to{transform:rotate(360deg)}}
+            @keyframes tb-fadein{from{opacity:0}to{opacity:1}}
+            @keyframes tb-pulse{0%,80%,100%{opacity:.3;transform:scale(.85)}40%{opacity:1;transform:scale(1.15)}}
+        </style>`;
+    document.body.appendChild(el);
+
+    let pollTimer = null;
+    function hideOverlay() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        el.style.animation = "tb-fadein 0.2s ease reverse";
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 220);
+    }
+
+    document.getElementById("tb-ov-close").onclick    = hideOverlay;
+    document.getElementById("tb-ov-continue").onclick = hideOverlay;
+
+    let polls = 0;
+    pollTimer = setInterval(async () => {
+        polls++;
+        try {
+            const res = await call("ticketbrain.api.ticket.get_ai_processing_status", {
+                ticket_name: ticketName,
+            });
+            if (res && (res.done || polls >= 40)) {
+                hideOverlay();
+                if (res.done && !res.timed_out) window.location.reload();
+            }
+        } catch (e) {
+            if (polls >= 40) hideOverlay();
+        }
+    }, 3000);
 }
 
 
@@ -526,8 +622,9 @@ def setup_ticketbrain_form_script():
     existing = frappe.db.get_value("HD Form Script", _TB_FORM_SCRIPT_NAME, "name")
     if existing:
         frappe.db.set_value("HD Form Script", _TB_FORM_SCRIPT_NAME, {
-            "script":  _TB_FORM_SCRIPT,
-            "enabled": 1,
+            "script":                   _TB_FORM_SCRIPT,
+            "enabled":                  1,
+            "apply_to_customer_portal": 1,
         })
         _log("Updated TicketBrain HD Form Script")
     else:
@@ -539,7 +636,7 @@ def setup_ticketbrain_form_script():
                 "apply_to":                   "Form",
                 "enabled":                    1,
                 "apply_on_new_page":          0,
-                "apply_to_customer_portal":   0,
+                "apply_to_customer_portal":   1,
                 "script":                     _TB_FORM_SCRIPT,
             }).insert(ignore_permissions=True)
             _log("Created TicketBrain HD Form Script")

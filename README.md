@@ -271,44 +271,7 @@ Default models per provider:
 | openrouter | `google/gemini-2.0-flash` |
 | ollama | `llama3.2` |
 
-### 6 — Inject the portal overlay script (required — one-time manual step)
-
-The Frappe Helpdesk portal is a standalone Vue SPA. The only way to inject TicketBrain's JS (evaluating overlay, agent assignment panel) is by editing the Helpdesk app's `index.html` **directly**.
-
-Open this file in your bench:
-
-```
-apps/helpdesk/helpdesk/www/helpdesk/index.html
-```
-
-Find the `<body>` tag and add the script **before `</body>`**:
-
-```html
-<body>
-  <div id="app"></div>
-  <div id="modals"></div>
-  <div id="popovers"></div>
-
-  <!-- ↓ Add this line ↓ -->
-  <script src="/assets/ticketbrain/js/helpdesk_portal_overlay.js"></script>
-
-  <script>
-    window.site_name = "{{ site_name }}";
-  </script>
-  ...
-</body>
-```
-
-Then rebuild assets:
-
-```bash
-bench build --app ticketbrain
-bench --site your-site.local clear-cache
-```
-
-> **Note:** If you update the Helpdesk app (`bench update`), this line may be overwritten. Re-apply it and run `bench build --app ticketbrain` again.
-
-### 7 — Disable Helpdesk search indexing (plain Redis only)
+### 6 — Disable Helpdesk search indexing (plain Redis only)
 
 If you are running **standard Redis** (not Redis with the RediSearch module), disable Helpdesk's search index to prevent errors:
 
@@ -320,7 +283,7 @@ bench --site your-site.local migrate
 
 If you are on Frappe Cloud or have Redis Stack / RediSearch installed, skip this step.
 
-### 8 — Restart workers
+### 7 — Restart workers
 
 ```bash
 bench restart
@@ -412,9 +375,9 @@ The same workflow is available via the **TicketBrain** button group on the HD Ti
 
 ## Troubleshooting
 
-### Panel not showing in Helpdesk portal
-- Confirm the `<script>` tag was added to `apps/helpdesk/helpdesk/www/helpdesk/index.html`
-- Run `bench build --app ticketbrain` and hard-refresh the browser (Ctrl+Shift+R)
+### Overlay or panel not showing in Helpdesk portal
+- Run `bench --site your-site.local migrate` to ensure the HD Form Script is installed/updated
+- Hard-refresh the browser (Ctrl+Shift+R) to clear cached scripts
 
 ### `FT.CREATE unknown command` error in logs
 Your Redis instance does not have RediSearch. Follow Step 7 above to disable Helpdesk search indexing.
