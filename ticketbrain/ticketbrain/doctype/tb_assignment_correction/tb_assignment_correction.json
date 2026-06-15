@@ -1,0 +1,162 @@
+{
+  "actions": [],
+  "autoname": "TB-CORR-.#####",
+  "creation": "2026-06-15 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "ticket",
+    "corrected_by",
+    "column_break_hdr",
+    "corrected_at",
+    "correction_reason",
+    "section_ai",
+    "ai_category",
+    "ai_team",
+    "column_break_ai",
+    "ai_priority",
+    "section_human",
+    "human_category",
+    "human_team",
+    "column_break_human",
+    "human_priority",
+    "section_ticket",
+    "ticket_subject",
+    "ticket_description"
+  ],
+  "fields": [
+    {
+      "fieldname": "ticket",
+      "fieldtype": "Link",
+      "label": "Ticket",
+      "options": "HD Ticket",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "corrected_by",
+      "fieldtype": "Link",
+      "label": "Corrected By",
+      "options": "User",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "column_break_hdr",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "corrected_at",
+      "fieldtype": "Datetime",
+      "label": "Corrected At",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "correction_reason",
+      "fieldtype": "Data",
+      "label": "Correction Reason",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "section_ai",
+      "fieldtype": "Section Break",
+      "label": "AI Prediction"
+    },
+    {
+      "fieldname": "ai_category",
+      "fieldtype": "Data",
+      "label": "AI Category"
+    },
+    {
+      "fieldname": "ai_team",
+      "fieldtype": "Data",
+      "label": "AI Team"
+    },
+    {
+      "fieldname": "column_break_ai",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "ai_priority",
+      "fieldtype": "Select",
+      "label": "AI Priority",
+      "options": "\nLow\nMedium\nHigh\nCritical"
+    },
+    {
+      "fieldname": "section_human",
+      "fieldtype": "Section Break",
+      "label": "Human Correction"
+    },
+    {
+      "fieldname": "human_category",
+      "fieldtype": "Data",
+      "label": "Correct Category"
+    },
+    {
+      "fieldname": "human_team",
+      "fieldtype": "Link",
+      "label": "Correct Team",
+      "options": "HD Team"
+    },
+    {
+      "fieldname": "column_break_human",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "human_priority",
+      "fieldtype": "Select",
+      "label": "Correct Priority",
+      "options": "\nLow\nMedium\nHigh\nCritical"
+    },
+    {
+      "fieldname": "section_ticket",
+      "fieldtype": "Section Break",
+      "label": "Ticket Context (for AI)"
+    },
+    {
+      "fieldname": "ticket_subject",
+      "fieldtype": "Data",
+      "label": "Ticket Subject",
+      "read_only": 1
+    },
+    {
+      "fieldname": "ticket_description",
+      "fieldtype": "Long Text",
+      "label": "Ticket Description",
+      "read_only": 1
+    }
+  ],
+  "in_create": 0,
+  "module": "Ticketbrain",
+  "name": "TB Assignment Correction",
+  "naming_rule": "Expression",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 0,
+      "export": 1,
+      "print": 0,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 0,
+      "export": 0,
+      "print": 0,
+      "read": 1,
+      "report": 1,
+      "role": "HD Agent",
+      "write": 0
+    }
+  ],
+  "sort_field": "corrected_at",
+  "sort_order": "DESC",
+  "track_changes": 0
+}

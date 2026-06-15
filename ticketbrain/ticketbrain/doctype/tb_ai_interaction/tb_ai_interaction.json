@@ -1,0 +1,213 @@
+{
+ "actions": [],
+ "autoname": "autoname",
+ "creation": "2026-06-12 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ticket",
+  "status",
+  "column_break_1",
+  "category",
+  "confidence_score",
+  "section_metrics",
+  "classification_confidence",
+  "kb_match_score",
+  "response_quality_score",
+  "column_break_metrics",
+  "priority_confidence",
+  "risk_score",
+  "auto_send_decision",
+  "auto_send_reason",
+  "section_approval",
+  "approval_status",
+  "assigned_agent",
+  "column_break_approval",
+  "ai_draft_response",
+  "section_agent",
+  "agent_response",
+  "section_steps",
+  "steps"
+ ],
+ "fields": [
+  {
+   "fieldname": "ticket",
+   "fieldtype": "Link",
+   "label": "Ticket",
+   "options": "HD Ticket",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nResolved\nEscalated",
+   "default": "Active",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "\nHardware & Infrastructure\nSoftware & Applications\nSecurity & Threats\nData & Reports\nNetwork & Connectivity\nAccount & Access",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "confidence_score",
+   "fieldtype": "Float",
+   "label": "Confidence Score",
+   "precision": "2"
+  },
+  {
+   "fieldname": "section_metrics",
+   "fieldtype": "Section Break",
+   "label": "AI Evaluation Metrics"
+  },
+  {
+   "fieldname": "classification_confidence",
+   "fieldtype": "Percent",
+   "label": "Classification Confidence",
+   "read_only": 1,
+   "description": "Classifier softmax probability for the predicted category."
+  },
+  {
+   "fieldname": "kb_match_score",
+   "fieldtype": "Percent",
+   "label": "Knowledge Match Score",
+   "read_only": 1,
+   "description": "How closely the ticket matches the best KB article (cosine similarity)."
+  },
+  {
+   "fieldname": "response_quality_score",
+   "fieldtype": "Percent",
+   "label": "Response Quality Score",
+   "read_only": 1,
+   "description": "LLM-as-judge: how well the AI response addresses the specific issue."
+  },
+  {
+   "fieldname": "column_break_metrics",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "priority_confidence",
+   "fieldtype": "Percent",
+   "label": "Priority Confidence",
+   "read_only": 1,
+   "description": "Strength of priority keyword signal in the ticket text."
+  },
+  {
+   "fieldname": "risk_score",
+   "fieldtype": "Select",
+   "label": "Risk Score",
+   "options": "\nLow\nMedium\nHigh\nCritical",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Business impact level based on category, priority, and escalation flag."
+  },
+  {
+   "fieldname": "auto_send_decision",
+   "fieldtype": "Select",
+   "label": "Routing Decision",
+   "options": "\nAuto Send\nHuman Review\nDirect Escalate",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Whether the AI response was sent automatically or held for agent review."
+  },
+  {
+   "fieldname": "auto_send_reason",
+   "fieldtype": "Small Text",
+   "label": "Decision Reason",
+   "read_only": 1,
+   "description": "Explanation of why this routing decision was made."
+  },
+  {
+   "fieldname": "section_approval",
+   "fieldtype": "Section Break",
+   "label": "Agent Approval"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Pending Approval\nAuto Sent\nApproved\nModified",
+   "default": "Pending Approval",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "assigned_agent",
+   "fieldtype": "Link",
+   "label": "Assigned Agent",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ai_draft_response",
+   "fieldtype": "Long Text",
+   "label": "AI Draft Response",
+   "read_only": 1,
+   "description": "AI-generated response — auto-sent or held for agent review depending on metrics."
+  },
+  {
+   "fieldname": "section_agent",
+   "fieldtype": "Section Break",
+   "label": "Agent Response"
+  },
+  {
+   "fieldname": "agent_response",
+   "fieldtype": "Long Text",
+   "label": "Agent Custom Response",
+   "read_only": 1,
+   "description": "Custom response written by the agent when the AI draft was not approved."
+  },
+  {
+   "fieldname": "section_steps",
+   "fieldtype": "Section Break",
+   "label": "Resolution Steps"
+  },
+  {
+   "fieldname": "steps",
+   "fieldtype": "Table",
+   "label": "Steps",
+   "options": "TB AI Step"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ticketbrain",
+ "name": "TB AI Interaction",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Desk User",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

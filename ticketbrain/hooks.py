@@ -9,7 +9,31 @@ app_license = "mit"
 # ------------------
 
 # required_apps = []
+after_install = "ticketbrain.setup.install.after_install"
+after_migrate = "ticketbrain.setup.install.after_migrate"
 
+before_send_email = ["ticketbrain.setup.fix_email_notifications.block_local_address_emails"]
+
+doc_events = {
+    "HD Ticket": {
+        "after_insert": "ticketbrain.events.hd_ticket.on_ticket_created",
+        "on_update":    "ticketbrain.events.hd_ticket.on_ticket_updated",
+    },
+    "HD Ticket Comment": {
+        "after_insert": "ticketbrain.events.hd_ticket_comment.on_comment_created",
+    },
+    "Communication": {
+        # Customer portal replies come in as Communications, not HD Ticket Comments
+        "after_insert": "ticketbrain.events.hd_ticket_comment.on_communication_created",
+    },
+    "HD Article": {
+        "after_insert": "ticketbrain.events.hd_article.on_article_save",
+        "on_update":    "ticketbrain.events.hd_article.on_article_save",
+    },
+    "TB Document": {
+        "after_insert": "ticketbrain.events.tb_document.on_document_submitted",
+    },
+}
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{
@@ -28,9 +52,11 @@ app_license = "mit"
 # app_include_css = "/assets/ticketbrain/css/ticketbrain.css"
 # app_include_js = "/assets/ticketbrain/js/ticketbrain.js"
 
+app_include_icons = ["ticketbrain/icons.svg"]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/ticketbrain/css/ticketbrain.css"
-# web_include_js = "/assets/ticketbrain/js/ticketbrain.js"
+web_include_js = "/assets/ticketbrain/js/helpdesk_portal_overlay.js"
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "ticketbrain/public/scss/website"
@@ -43,7 +69,11 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "HD Ticket":            "public/js/hd_ticket.js",
+    "TB AI Interaction":    "public/js/tb_ai_interaction.js",
+    "TB Business Context":  "public/js/tb_business_context.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -148,23 +178,15 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"ticketbrain.tasks.all"
-# 	],
-# 	"daily": [
-# 		"ticketbrain.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"ticketbrain.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"ticketbrain.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"ticketbrain.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "daily": [
+        "ticketbrain.ai.context_discovery.maybe_run_scheduled_scan",
+        "ticketbrain.ai.context_discovery.detect_context_changes",
+    ],
+    "weekly": [
+        "ticketbrain.ai.knowledge_extraction.rebuild_ticket_index",
+    ],
+}
 
 # Testing
 # -------

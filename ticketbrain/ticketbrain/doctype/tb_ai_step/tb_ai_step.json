@@ -1,0 +1,66 @@
+{
+ "actions": [],
+ "autoname": "autoname",
+ "creation": "2026-06-12 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "step_number",
+  "step_content",
+  "status",
+  "column_break_1",
+  "user_message",
+  "ai_followup"
+ ],
+ "fields": [
+  {
+   "fieldname": "step_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Step Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "step_content",
+   "fieldtype": "Long Text",
+   "in_list_view": 1,
+   "label": "Step Content",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nSatisfied\nStuck\nSkipped",
+   "default": "Pending"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "user_message",
+   "fieldtype": "Long Text",
+   "label": "User Message"
+  },
+  {
+   "fieldname": "ai_followup",
+   "fieldtype": "Long Text",
+   "label": "AI Followup"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ticketbrain",
+ "name": "TB AI Step",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

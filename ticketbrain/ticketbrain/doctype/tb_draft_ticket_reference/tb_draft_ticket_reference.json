@@ -1,0 +1,33 @@
+{
+  "name": "TB Draft Ticket Reference",
+  "doctype": "DocType",
+  "module": "Ticketbrain",
+  "istable": 1,
+  "fields": [
+    {
+      "fieldname": "ticket",
+      "fieldtype": "Link",
+      "label": "Ticket",
+      "options": "HD Ticket",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "subject",
+      "fieldtype": "Data",
+      "label": "Subject",
+      "read_only": 1,
+      "in_list_view": 1,
+      "fetch_from": "ticket.subject"
+    },
+    {
+      "fieldname": "similarity",
+      "fieldtype": "Float",
+      "label": "Similarity Score",
+      "read_only": 1,
+      "in_list_view": 1,
+      "precision": 2
+    }
+  ],
+  "permissions": [],
+  "links": []
+}

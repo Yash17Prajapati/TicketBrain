@@ -1,0 +1,160 @@
+{
+ "actions": [],
+ "autoname": "TB-KDRAFT-.#####",
+ "creation": "2026-06-15 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "status",
+  "column_break_header",
+  "category",
+  "occurrence_count",
+  "source_ticket",
+  "related_team",
+  "section_content",
+  "content",
+  "section_root_cause",
+  "root_cause",
+  "column_break_rc",
+  "resolution_steps",
+  "section_references",
+  "ticket_references",
+  "section_promotion",
+  "hd_article"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending Approval\nApproved\nRejected",
+   "default": "Pending Approval",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Data",
+   "label": "Category",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "occurrence_count",
+   "fieldtype": "Int",
+   "label": "Occurrences",
+   "default": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "source_ticket",
+   "fieldtype": "Link",
+   "label": "Source Ticket",
+   "options": "HD Ticket",
+   "read_only": 1
+  },
+  {
+   "fieldname": "related_team",
+   "fieldtype": "Link",
+   "label": "Related Team",
+   "options": "HD Team"
+  },
+  {
+   "fieldname": "section_content",
+   "fieldtype": "Section Break",
+   "label": "Draft Content"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "label": "Summary / Full Content",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_root_cause",
+   "fieldtype": "Section Break",
+   "label": "Analysis"
+  },
+  {
+   "fieldname": "root_cause",
+   "fieldtype": "Small Text",
+   "label": "Root Cause"
+  },
+  {
+   "fieldname": "column_break_rc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "resolution_steps",
+   "fieldtype": "Long Text",
+   "label": "Resolution Steps",
+   "description": "Numbered steps observed across similar tickets."
+  },
+  {
+   "fieldname": "section_references",
+   "fieldtype": "Section Break",
+   "label": "Supporting Tickets",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "ticket_references",
+   "fieldtype": "Table",
+   "label": "Ticket References",
+   "options": "TB Draft Ticket Reference"
+  },
+  {
+   "fieldname": "section_promotion",
+   "fieldtype": "Section Break",
+   "label": "Knowledge Article",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "hd_article",
+   "fieldtype": "Link",
+   "label": "Promoted to HD Article",
+   "options": "HD Article",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-15 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ticketbrain",
+ "name": "TB Knowledge Draft",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "role": "Desk User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title"
+}

@@ -5,3 +5,15 @@
 tags
 node_modules
 __pycache__
+
+# Claude Code local settings
+.claude/
+
+# Embedding model — 88 MB, download via: python ticketbrain/ml/setup.py
+ticketbrain/ml/models/embedding_model/
+
+# Runtime RAG indexes — auto-generated, not committed
+ticketbrain/ml/models/rag_index.npz
+ticketbrain/ml/models/kb_index.npz
+ticketbrain/ml/models/ticket_index.npz
+ticketbrain/ml/models/feedback_index.npz

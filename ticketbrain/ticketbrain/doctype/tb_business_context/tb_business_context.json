@@ -1,0 +1,230 @@
+{
+ "actions": [],
+ "autoname": "field:company",
+ "creation": "2026-06-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "lifecycle_status",
+  "approval_status",
+  "column_break_header",
+  "scan_status",
+  "current_version",
+  "overall_confidence",
+  "update_available",
+  "update_notes",
+  "section_profile",
+  "industry",
+  "company_type",
+  "column_break_profile",
+  "business_description",
+  "section_schedule",
+  "schedule_enabled",
+  "schedule_days",
+  "column_break_schedule",
+  "last_scan_date",
+  "next_scan_date",
+  "section_scan_info",
+  "last_scan_summary",
+  "items_pending",
+  "scan_raw_data",
+  "section_items",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "lifecycle_status",
+   "fieldtype": "Select",
+   "label": "Lifecycle Status",
+   "options": "Not Generated\nScanning\nReview Required\nActive",
+   "default": "Not Generated",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Draft\nPending Review\nApproved",
+   "default": "Draft",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scan_status",
+   "fieldtype": "Select",
+   "label": "Scan Status",
+   "options": "Idle\nRunning\nCompleted\nFailed",
+   "default": "Idle",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "current_version",
+   "fieldtype": "Int",
+   "label": "Active Version",
+   "read_only": 1,
+   "description": "The currently approved context version number."
+  },
+  {
+   "fieldname": "overall_confidence",
+   "fieldtype": "Percent",
+   "label": "Overall Confidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "update_available",
+   "fieldtype": "Check",
+   "label": "Context Update Available",
+   "read_only": 1,
+   "default": 0
+  },
+  {
+   "fieldname": "update_notes",
+   "fieldtype": "Small Text",
+   "label": "Update Notes",
+   "read_only": 1,
+   "description": "What changed in your organisation that may require a context refresh."
+  },
+  {
+   "fieldname": "section_profile",
+   "fieldtype": "Section Break",
+   "label": "Business Profile"
+  },
+  {
+   "fieldname": "industry",
+   "fieldtype": "Data",
+   "label": "Industry",
+   "description": "Auto-discovered. Edit if incorrect."
+  },
+  {
+   "fieldname": "company_type",
+   "fieldtype": "Data",
+   "label": "Company Type"
+  },
+  {
+   "fieldname": "column_break_profile",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "business_description",
+   "fieldtype": "Long Text",
+   "label": "Business Description",
+   "description": "AI-generated summary of the organization. Edit to add more context."
+  },
+  {
+   "fieldname": "section_schedule",
+   "fieldtype": "Section Break",
+   "label": "Scan Schedule",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "schedule_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Scheduled Scans",
+   "default": 0
+  },
+  {
+   "fieldname": "schedule_days",
+   "fieldtype": "Int",
+   "label": "Re-run Every (days)",
+   "default": 7,
+   "description": "How many days between automatic context discovery scans."
+  },
+  {
+   "fieldname": "column_break_schedule",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_scan_date",
+   "fieldtype": "Datetime",
+   "label": "Last Scan Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_scan_date",
+   "fieldtype": "Date",
+   "label": "Next Scheduled Scan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_scan_info",
+   "fieldtype": "Section Break",
+   "label": "Scan Details",
+   "collapsible": 1,
+   "collapsed": 1
+  },
+  {
+   "fieldname": "last_scan_summary",
+   "fieldtype": "Small Text",
+   "label": "Last Scan Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "items_pending",
+   "fieldtype": "Int",
+   "label": "Items Pending Review",
+   "read_only": 1,
+   "default": 0
+  },
+  {
+   "fieldname": "scan_raw_data",
+   "fieldtype": "Long Text",
+   "label": "Raw Scan Data (JSON)",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "section_items",
+   "fieldtype": "Section Break",
+   "label": "Discovered Context Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Context Items",
+   "options": "TB Context Item"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ticketbrain",
+ "name": "TB Business Context",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "role": "Desk User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

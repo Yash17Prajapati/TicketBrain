@@ -1,0 +1,18 @@
+{
+  "embedding_model": "all-MiniLM-L6-v2",
+  "confidence_threshold": 0.65,
+  "categories": [
+    "Account & Access",
+    "Data & Reports",
+    "Hardware & Infrastructure",
+    "Network & Connectivity",
+    "Security & Threats",
+    "Software & Applications"
+  ],
+  "num_categories": 6,
+  "training_samples": 1465,
+  "test_samples": 367,
+  "accuracy": 0.9946,
+  "f1_weighted": 0.9945,
+  "f1_macro": 0.9946
+}
